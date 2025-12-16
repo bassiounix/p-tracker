@@ -254,6 +254,11 @@
     </table>
 
     <button onclick="exportData()">Export Data (CSV)</button>
+    <button onclick="document.getElementById('importFile').click()">
+      Import Data (CSV)
+    </button>
+    <input type="file" id="importFile" accept=".csv" style="display:none" onchange="importData(this.files[0])" />
+
   </div>
 
   <script>
@@ -274,6 +279,62 @@
       localStorage.setItem(DARK_KEY, on ? '1' : '0');
     }
 
+    function importData(file) {
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      reader.onload = e => {
+        const text = e.target.result.trim();
+        // Split lines robustly, handle CRLF and empty lines
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        console.log({ lines });
+
+        if (lines.length < 2) {
+          alert('CSV is empty or invalid');
+          return;
+        }
+
+        // Expect header: name,amount,category,priority,date
+        const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+        const REQUIRED = ['name', 'amount', 'category', 'priority', 'date'];
+
+        if (!REQUIRED.every(h => header.includes(h))) {
+          alert('Invalid CSV format: header missing required columns');
+          return;
+        }
+
+        const data = load();
+
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(',').map(v => v.trim());
+          if (values.length !== header.length) continue;
+
+          const entry = {};
+          header.forEach((h, idx) => {
+            entry[h] = values[idx];
+          });
+
+          console.log({ entry });
+
+          // Convert numeric fields
+          data.push({
+            name: entry.name,
+            amount: parseFloat(entry.amount) || 0,
+            category: entry.category,
+            rank: parseInt(entry.priority) || 5,
+            date: entry.date
+          });
+        }
+
+        save(data);
+        render();
+        alert('Data imported successfully');
+      };
+
+      reader.readAsText(file);
+    }
+
     // Load preference
     applyDarkMode(localStorage.getItem(DARK_KEY) === '1');
 
@@ -291,6 +352,7 @@
     }
 
     function save(data) {
+      console.log('saving', data);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     }
 
@@ -413,7 +475,7 @@
       const rows = data.map(e => [e.name, e.amount, e.category, e.rank, e.date]);
       const csv = [header, ...rows]
         .map(r => r.join(','))
-        .join('');
+        .join('\n');
 
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
