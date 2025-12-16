@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Offline Spending Tracker</title>
 
   <!-- PWA Manifest (inline via data URL for single-file use) -->
-  <link rel="manifest" href='data:application/json,{"name":"Spending Tracker","short_name":"Spending","start_url":".","display":"standalone","background_color":"#ffffff","theme_color":"#2563eb","icons":[{"src":"data:image/png;base64,iVBORw0KGgo=","sizes":"192x192","type":"image/png"}]}'>
+  <link rel="manifest"
+    href='data:application/json,{"name":"Spending Tracker","short_name":"Spending","start_url":".","display":"standalone","background_color":"#ffffff","theme_color":"#2563eb","icons":[{"src":"data:image/png;base64,iVBORw0KGgo=","sizes":"192x192","type":"image/png"}]}'>
 
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -18,16 +20,28 @@
       padding: 16px;
       background: #f8fafc;
     }
-    h1 { font-size: 1.5rem; }
+
+    h1 {
+      font-size: 1.5rem;
+    }
+
     .card {
       background: white;
       border-radius: 12px;
       padding: 12px;
       margin-bottom: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
     }
-    label { display: block; margin-top: 8px; font-size: 0.9rem; }
-    input, select, button {
+
+    label {
+      display: block;
+      margin-top: 8px;
+      font-size: 0.9rem;
+    }
+
+    input,
+    select,
+    button {
       width: 100%;
       padding: 8px;
       margin-top: 4px;
@@ -35,22 +49,52 @@
       border: 1px solid #cbd5e1;
       font-size: 1rem;
     }
+
     button {
       background: #2563eb;
       color: white;
       border: none;
       margin-top: 12px;
     }
-    .totals p { margin: 4px 0; }
-    ul { list-style: none; padding: 0; }
-    li { font-size: 0.85rem; border-bottom: 1px solid #e5e7eb; padding: 4px 0; }
+
+    .totals p {
+      margin: 4px 0;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      font-size: 0.85rem;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 4px 0;
+    }
+
+    th,
+    td {
+      padding: 6px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 0.85rem;
+      text-align: left;
+    }
+
+    th {
+      font-weight: 600;
+    }
   </style>
 </head>
+
 <body>
   <h1>Spending Tracker</h1>
 
   <div class="card">
     <h2>Add Spending</h2>
+
+    <label>Item Name</label>
+    <input type="text" id="item-name" />
+
     <label>Amount</label>
     <input type="number" id="amount" step="0.01" />
 
@@ -63,12 +107,10 @@
       <option>Other</option>
     </select>
 
-    <label>Rank (1 = Need, 3 = Want)</label>
-    <select id="rank">
-      <option value="1">1</option>
-      <option value="2">2</option>
-      <option value="3">3</option>
-    </select>
+    <label>Priority (1 = Want, 10 = Need)</label>
+    <input type="range" id="rank" min="1" max="10" value="5"
+      oninput="document.getElementById('rankValue').textContent = this.value" />
+    <div style="text-align:center;font-size:0.9rem">Value: <span id="rankValue">5</span></div>
 
     <button onclick="addSpending()">Save</button>
   </div>
@@ -82,98 +124,173 @@
 
   <div class="card">
     <h2>Recent Entries</h2>
-    <ul id="list"></ul>
+    <table id="list" style="width:100%; border-collapse: collapse;">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Name</th>
+          <th>Amount</th>
+          <th>Category</th>
+          <th>Priority</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
     <button onclick="exportData()">Export Data (CSV)</button>
   </div>
 
-<script>
-  // Service Worker (inline via Blob)
-  if ('serviceWorker' in navigator) {
-    const swCode = `self.addEventListener('install', e => self.skipWaiting());
-    self.addEventListener('fetch', e => e.respondWith(caches.open('app').then(c => c.match(e.request).then(r => r || fetch(e.request)))));`;
-    const blob = new Blob([swCode], { type: 'text/javascript' });
-    navigator.serviceWorker.register(URL.createObjectURL(blob));
-  }
+  <script>
+    // Service Worker (inline via Blob)
+    // if ('serviceWorker' in navigator) {
+    //   const swCode = `self.addEventListener('install', e => self.skipWaiting());
+    // self.addEventListener('fetch', e => e.respondWith(caches.open('app').then(c => c.match(e.request).then(r => r || fetch(e.request)))));`;
+    //   const blob = new Blob([swCode], { type: 'text/javascript' });
+    //   navigator.serviceWorker.register(URL.createObjectURL(blob));
+    // }
 
-  const STORAGE_KEY = 'spendings';
+    const STORAGE_KEY = 'spendings';
 
-  function load() {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  }
+    function load() {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    }
 
-  function save(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }
+    function save(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
 
-  function addSpending() {
-    const amount = parseFloat(document.getElementById('amount').value);
-    if (!amount) return;
+    function normalize(x) {
+      return (x - 1) / (10 - 1);
+    }
 
-    const entry = {
-      amount,
-      category: document.getElementById('category').value,
-      rank: parseInt(document.getElementById('rank').value),
-      date: new Date().toISOString()
-    };
+    function dailyScore() {
+      const data = load();
+      let total = 0;
+      let acc = 0;
+      data.forEach(e => {
+        const d = new Date(e.date);
+        const now = new Date();
+        if (isSameDay(d, now)) {
+          total += e.amount;
+          acc += e.amount * normalize(e.rank);
+        }
+      });
+      return acc / total * 100;
+    }
 
-    const data = load();
-    data.push(entry);
-    save(data);
+    function weeklyScore() {
+      const data = load();
+      let total = 0;
+      let acc = 0;
+      data.forEach(e => {
+        const d = new Date(e.date);
+        const now = new Date();
+        if (d >= new Date(now - 7 * 24 * 60 * 60 * 1000)) {
+          total += e.amount;
+          acc += e.amount * normalize(e.rank);
+        }
+      });
+      return acc / total * 100;
+    }
+
+    function monthlyScore() {
+      const data = load();
+      let total = 0;
+      let acc = 0;
+      data.forEach(e => {
+        const d = new Date(e.date);
+        const now = new Date();
+        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+          total += e.amount;
+          acc += e.amount * normalize(e.rank);
+        }
+      });
+      return acc / total * 100;
+    }
+
+    function addSpending() {
+      const name = document.getElementById('item-name').value;
+      if (!name) return;
+      const amount = parseFloat(document.getElementById('amount').value);
+      if (!amount) return;
+
+      const entry = {
+        name,
+        amount,
+        category: document.getElementById('category').value,
+        rank: parseInt(document.getElementById('rank').value),
+        date: new Date().toISOString()
+      };
+
+      const data = load();
+      data.push(entry);
+      save(data);
+      render();
+    }
+
+    function isSameDay(a, b) {
+      return a.toDateString() === b.toDateString();
+    }
+
+    function render() {
+      const data = load();
+      const now = new Date();
+
+      let today = 0, week = 0, month = 0;
+
+      data.forEach(e => {
+        const d = new Date(e.date);
+        if (isSameDay(d, now)) today += e.amount;
+        if (d >= new Date(now - 7 * 24 * 60 * 60 * 1000)) week += e.amount;
+        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) month += e.amount;
+      });
+
+      document.getElementById('today').textContent = `Today: L.E. ${today.toFixed(2)} - Score: ${dailyScore().toFixed(2)}%`;
+      document.getElementById('week').textContent = `This Week: L.E. ${week.toFixed(2)} - Score: ${weeklyScore().toFixed(2)}%`;
+      document.getElementById('month').textContent = `This Month: L.E. ${month.toFixed(2)} - Score: ${monthlyScore().toFixed(2)}%`;
+
+      const table = document.getElementById('list').querySelector('tbody');
+      table.innerHTML = '';
+
+      data.slice(-10).reverse().forEach(e => {
+        const tr = document.createElement('tr');
+
+        tr.innerHTML = `
+    <td>${new Date(e.date).toLocaleString()}</td>
+    <td>${e.name ?? ''}</td>
+    <td>L.E. ${e.amount}</td>
+    <td>${e.category}</td>
+    <td>${e.rank}</td>
+  `;
+
+        table.appendChild(tr);
+      });
+
+    }
+
     render();
-  }
 
-  function isSameDay(a, b) {
-    return a.toDateString() === b.toDateString();
-  }
+    function exportData() {
+      const data = load();
+      if (!data.length) return;
 
-  function render() {
-    const data = load();
-    const now = new Date();
+      const header = ['name', 'amount', 'category', 'priority', 'date'];
+      const rows = data.map(e => [e.name, e.amount, e.category, e.rank, e.date]);
+      const csv = [header, ...rows]
+        .map(r => r.join(','))
+        .join('');
 
-    let today = 0, week = 0, month = 0;
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
 
-    data.forEach(e => {
-      const d = new Date(e.date);
-      if (isSameDay(d, now)) today += e.amount;
-      if (d >= new Date(now - 7*24*60*60*1000)) week += e.amount;
-      if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) month += e.amount;
-    });
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'spending-data.csv';
+      a.click();
 
-    document.getElementById('today').textContent = `Today: $${today.toFixed(2)}`;
-    document.getElementById('week').textContent = `This Week: $${week.toFixed(2)}`;
-    document.getElementById('month').textContent = `This Month: $${month.toFixed(2)}`;
-
-    const list = document.getElementById('list');
-    list.innerHTML = '';
-    data.slice(-10).reverse().forEach(e => {
-      const li = document.createElement('li');
-      li.textContent = `${new Date(e.date).toLocaleString()} - $${e.amount} - ${e.category} - Rank ${e.rank}`;
-      list.appendChild(li);
-    });
-  }
-
-  render();
-
-  function exportData() {
-    const data = load();
-    if (!data.length) return;
-
-    const header = ['amount','category','rank','date'];
-    const rows = data.map(e => [e.amount, e.category, e.rank, e.date]);
-    const csv = [header, ...rows]
-      .map(r => r.join(','))
-      .join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'spending-data.csv';
-    a.click();
-
-    URL.revokeObjectURL(url);
-  }
-</script>
+      URL.revokeObjectURL(url);
+    }
+  </script>
 </body>
+
 </html>
